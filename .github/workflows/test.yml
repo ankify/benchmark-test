@@ -1,0 +1,52 @@
+name: Telegram Parallel Benchmark Bot
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-bots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30   # bot lives for 30 minutes
+
+    env:
+      API_ID: ${{ secrets.API_ID }}
+      API_HASH: ${{ secrets.API_HASH }}
+      BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # ---------- Python ----------
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps (telethon + cryptg)
+        run: |
+          pip install --upgrade pip
+          pip install telethon cryptg
+
+      # ---------- Go ----------
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Install gogram
+        run: |
+          go mod init benchmark || true
+          go get github.com/amarnathcjd/gogram/telegram
+
+      # ---------- Run BOTH in parallel ----------
+      - name: Run Telethon & Gogram listeners
+        run: |
+          echo "Starting Telethon..."
+          python telethon_listener.py > telethon.log &
+
+          echo "Starting Gogram..."
+          go run gogram_listener.go > gogram.log &
+
+          echo "Both bots running..."
+          wait
